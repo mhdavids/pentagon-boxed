@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pentagon Boxed — Solve in One</title>
+<title>Pentagon Boxed</title>
 <style>
   :root {
     --bg: #f7f4ec;
@@ -17,6 +17,7 @@
     --accent: #1a1a1a;
     --good: #2d8c3c;
     --bad: #c43030;
+    --muted: #999;
   }
 
   * { box-sizing: border-box; }
@@ -35,7 +36,7 @@
 
   header {
     text-align: center;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     max-width: 600px;
   }
 
@@ -79,12 +80,35 @@
     padding-left: 20px;
   }
 
+  .word-list {
+    min-height: 1.6rem;
+    margin: 12px 0 4px;
+    font-size: 1.05rem;
+    color: #555;
+    text-align: center;
+    max-width: 540px;
+    line-height: 1.5;
+  }
+
+  .word-list .word-chip {
+    display: inline-block;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 2px 10px;
+    margin: 2px 4px;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: var(--ink);
+  }
+
   .word-display {
     font-size: 1.8rem;
     font-weight: bold;
     letter-spacing: 4px;
     min-height: 2.4rem;
-    margin: 14px 0 6px;
+    margin: 4px 0 4px;
     color: var(--accent);
     text-align: center;
     font-family: 'Courier New', monospace;
@@ -93,9 +117,13 @@
   .word-display .placeholder {
     color: #bbb;
     letter-spacing: 2px;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-style: italic;
     font-family: Georgia, serif;
+  }
+
+  .word-display .carryover {
+    color: var(--muted);
   }
 
   .progress {
@@ -115,12 +143,6 @@
     touch-action: manipulation;
   }
 
-  .pentagon-shape {
-    fill: #fff;
-    stroke: var(--line);
-    stroke-width: 2;
-  }
-
   .side-line {
     stroke-width: 6;
     stroke-linecap: round;
@@ -137,9 +159,7 @@
     fill: #fff;
     stroke-width: 2.5;
     cursor: pointer;
-    transition: transform 0.1s, fill 0.15s;
-    transform-origin: center;
-    transform-box: fill-box;
+    transition: fill 0.15s;
   }
 
   .letter-dot.s0 { stroke: var(--side-0); }
@@ -170,17 +190,20 @@
     fill: #fff;
   }
 
+  .past-path {
+    stroke: #b8b3a6;
+    stroke-width: 2;
+    stroke-linecap: round;
+    fill: none;
+    pointer-events: none;
+  }
+
   .path-line {
     stroke: var(--accent);
     stroke-width: 2.5;
     stroke-linecap: round;
     fill: none;
     pointer-events: none;
-  }
-
-  .path-line.last {
-    stroke: var(--accent);
-    stroke-width: 3;
   }
 
   .controls {
@@ -236,6 +259,7 @@
 
   .message.good { color: var(--good); }
   .message.bad { color: var(--bad); }
+  .message.info { color: #555; font-weight: normal; }
 
   .shake {
     animation: shake 0.4s;
@@ -282,56 +306,49 @@
 
 <header>
   <h1>Pentagon Boxed</h1>
-  <p class="subtitle">Letter Boxed, but five-sided — and solvable in one word.</p>
+  <p class="subtitle">Letter Boxed, but five-sided. Solve in one word — or chain as many as you need.</p>
   <details class="rules">
     <summary>How to play</summary>
     <div class="rules-content">
       <ul>
-        <li>Click letters to spell a single word using <strong>all 15 letters</strong>.</li>
-        <li>Consecutive letters cannot be on the <strong>same side</strong> of the pentagon.</li>
-        <li>Each letter is used exactly once. There is one valid English word.</li>
-        <li>Use <em>Backspace</em> to undo, <em>Clear</em> to start over.</li>
+        <li>Spell a word by clicking letters. Consecutive letters cannot be on the <strong>same side</strong>.</li>
+        <li>Press <strong>Enter Word</strong> to lock in a word. The next word must start with that word's last letter.</li>
+        <li>Use every letter on the pentagon at least once across all your words to win.</li>
+        <li><strong>Bonus challenge:</strong> there's a single 15-letter English word that solves it in one shot.</li>
+        <li>Words are checked against a real English dictionary. Minimum 3 letters per word.</li>
       </ul>
     </div>
   </details>
 </header>
 
+<div class="word-list" id="wordList"></div>
 <div class="word-display" id="wordDisplay">
   <span class="placeholder">click a letter to begin</span>
 </div>
 <div class="progress" id="progress">0 / 15 letters used</div>
 
 <div class="game-area" id="gameArea">
-  <svg id="board" viewBox="0 0 500 500" width="500" height="500" aria-label="Pentagon puzzle board">
-    <!-- pentagon outline drawn in JS -->
-  </svg>
+  <svg id="board" viewBox="0 0 500 500" width="500" height="500" aria-label="Pentagon puzzle board"></svg>
 </div>
 
 <div class="controls">
   <button id="backspaceBtn">⌫ Backspace</button>
-  <button id="clearBtn">Clear</button>
+  <button id="restartBtn">Restart</button>
   <button id="hintBtn">Hint</button>
-  <button class="primary" id="submitBtn">Submit</button>
+  <button class="primary" id="enterBtn">Enter Word</button>
 </div>
 
 <div class="message" id="message"></div>
 
-<div class="definition hidden" id="definition">
-  <strong>dermatoglyphics</strong> <span style="font-weight:normal">(noun)</span>: the scientific study of the patterns of ridges on the skin — fingerprints, palm prints, and the soles of the feet.
-</div>
+<div class="definition hidden" id="definition"></div>
 
 <script>
 (() => {
   // ---- Puzzle setup ---------------------------------------------------------
-  // The target word: DERMATOGLYPHICS (15 unique letters)
-  // Letters indexed 0..14 in the word; side[i] = i mod 5 guarantees no two
-  // consecutive letters share a side.
   const TARGET = "DERMATOGLYPHICS";
   const SIDES = [[], [], [], [], []];
   for (let i = 0; i < TARGET.length; i++) SIDES[i % 5].push(TARGET[i]);
 
-  // Shuffle each side so the answer isn't readable in order around the pentagon.
-  // Use a fixed seed so today's puzzle is consistent on reload.
   function seededShuffle(arr, seed) {
     const a = arr.slice();
     let s = seed;
@@ -346,24 +363,19 @@
 
   // ---- Geometry -------------------------------------------------------------
   const CX = 250, CY = 250, R = 190;
-  // Vertices at -90°, -18°, 54°, 126°, 198°
   const vertices = [];
   for (let i = 0; i < 5; i++) {
     const ang = (-90 + 72 * i) * Math.PI / 180;
     vertices.push({ x: CX + R * Math.cos(ang), y: CY + R * Math.sin(ang) });
   }
 
-  // For each side i: from vertices[i] to vertices[(i+1) % 5]
-  // Place 3 letters at 25%, 50%, 75% along the side.
   const letters = []; // { id, ch, side, x, y }
   for (let s = 0; s < 5; s++) {
     const a = vertices[s], b = vertices[(s + 1) % 5];
     for (let k = 0; k < 3; k++) {
       const t = 0.25 + 0.25 * k;
-      // Push letters slightly outward from the edge for clarity.
       const ex = a.x + (b.x - a.x) * t;
       const ey = a.y + (b.y - a.y) * t;
-      // outward normal = away from centroid
       const dx = ex - CX, dy = ey - CY;
       const len = Math.hypot(dx, dy);
       const nx = dx / len, ny = dy / len;
@@ -378,12 +390,10 @@
     }
   }
 
-  // ---- Render ---------------------------------------------------------------
+  // ---- Render setup ---------------------------------------------------------
   const SVG_NS = "http://www.w3.org/2000/svg";
   const board = document.getElementById('board');
 
-  // Pentagon fill (white), with each edge drawn as a colored line so each side
-  // has its own identity color.
   for (let s = 0; s < 5; s++) {
     const a = vertices[s], b = vertices[(s + 1) % 5];
     const line = document.createElementNS(SVG_NS, 'line');
@@ -395,12 +405,14 @@
     board.appendChild(line);
   }
 
-  // Path layer (drawn before letters so dots sit on top)
+  const pastLayer = document.createElementNS(SVG_NS, 'g');
+  pastLayer.setAttribute('id', 'pastLayer');
+  board.appendChild(pastLayer);
+
   const pathLayer = document.createElementNS(SVG_NS, 'g');
   pathLayer.setAttribute('id', 'pathLayer');
   board.appendChild(pathLayer);
 
-  // Letter dots
   const dotElems = [];
   letters.forEach(L => {
     const g = document.createElementNS(SVG_NS, 'g');
@@ -427,18 +439,25 @@
   });
 
   // ---- Game state -----------------------------------------------------------
-  let path = []; // list of letter ids in order
+  let path = [];                    // current word in progress (letter ids)
+  let completedWords = [];          // [{ word: "DERM", path: [ids] }, ...]
+  let usedLetters = new Set();      // letter ids used across all completed words
+  let won = false;
+  let validating = false;
+
   const wordDisplay = document.getElementById('wordDisplay');
+  const wordList = document.getElementById('wordList');
   const progress = document.getElementById('progress');
   const message = document.getElementById('message');
   const definition = document.getElementById('definition');
-  const submitBtn = document.getElementById('submitBtn');
+  const enterBtn = document.getElementById('enterBtn');
   const backspaceBtn = document.getElementById('backspaceBtn');
-  const clearBtn = document.getElementById('clearBtn');
+  const restartBtn = document.getElementById('restartBtn');
   const hintBtn = document.getElementById('hintBtn');
 
   function onLetterClick(id) {
-    if (path.length > 0 && path[path.length - 1] === id) return; // ignore repeat click on same letter
+    if (won || validating) return;
+    if (path.length > 0 && path[path.length - 1] === id) return;
     if (path.length > 0) {
       const last = letters[path[path.length - 1]];
       if (letters[id].side === last.side) {
@@ -447,23 +466,52 @@
       }
     }
     path.push(id);
+    clearMessage();
     render();
   }
 
   function render() {
-    // Word display
-    if (path.length === 0) {
-      wordDisplay.innerHTML = '<span class="placeholder">click a letter to begin</span>';
+    // Word list (completed)
+    if (completedWords.length === 0) {
+      wordList.innerHTML = '';
     } else {
-      wordDisplay.textContent = path.map(i => letters[i].ch).join('');
+      wordList.innerHTML = completedWords
+        .map(w => `<span class="word-chip">${w.word}</span>`)
+        .join('<span style="color:#aaa">→</span>');
     }
-    progress.textContent = `${path.length} / 15 letters used`;
+
+    // Current word display
+    if (path.length === 0) {
+      if (won) {
+        wordDisplay.innerHTML = '<span style="color:var(--good)">🎉 Solved!</span>';
+      } else if (completedWords.length > 0) {
+        wordDisplay.innerHTML = '<span class="placeholder">start next word with the last letter</span>';
+      } else {
+        wordDisplay.innerHTML = '<span class="placeholder">click a letter to begin</span>';
+      }
+    } else {
+      // If first letter is a carryover, render it muted
+      const isCarryover = completedWords.length > 0 &&
+        path.length >= 1 &&
+        path[0] === completedWords[completedWords.length - 1].path.slice(-1)[0];
+      if (isCarryover) {
+        const head = `<span class="carryover">${letters[path[0]].ch}</span>`;
+        const rest = path.slice(1).map(i => letters[i].ch).join('');
+        wordDisplay.innerHTML = head + rest;
+      } else {
+        wordDisplay.textContent = path.map(i => letters[i].ch).join('');
+      }
+    }
+
+    // Progress (count letters used: completed words + current path)
+    const liveSet = new Set(usedLetters);
+    path.forEach(id => liveSet.add(id));
+    progress.textContent = `${liveSet.size} / 15 letters used`;
 
     // Dots
-    const usedSet = new Set(path);
     letters.forEach(L => {
       const { circle, text } = dotElems[L.id];
-      if (usedSet.has(L.id)) {
+      if (liveSet.has(L.id)) {
         circle.classList.add('used');
         text.classList.add('used');
       } else {
@@ -472,7 +520,23 @@
       }
     });
 
-    // Path lines
+    // Past paths (faded)
+    pastLayer.innerHTML = '';
+    completedWords.forEach(w => {
+      for (let i = 1; i < w.path.length; i++) {
+        const a = letters[w.path[i - 1]];
+        const b = letters[w.path[i]];
+        const ln = document.createElementNS(SVG_NS, 'line');
+        ln.setAttribute('x1', a.x);
+        ln.setAttribute('y1', a.y);
+        ln.setAttribute('x2', b.x);
+        ln.setAttribute('y2', b.y);
+        ln.setAttribute('class', 'past-path');
+        pastLayer.appendChild(ln);
+      }
+    });
+
+    // Current path
     pathLayer.innerHTML = '';
     for (let i = 1; i < path.length; i++) {
       const a = letters[path[i - 1]];
@@ -482,9 +546,14 @@
       ln.setAttribute('y1', a.y);
       ln.setAttribute('x2', b.x);
       ln.setAttribute('y2', b.y);
-      ln.setAttribute('class', i === path.length - 1 ? 'path-line last' : 'path-line');
+      ln.setAttribute('class', 'path-line');
       pathLayer.appendChild(ln);
     }
+
+    enterBtn.disabled = won || validating || path.length < 3;
+    backspaceBtn.disabled = won || validating || path.length === 0 ||
+      // can't backspace away the carryover starting letter
+      (completedWords.length > 0 && path.length === 1);
   }
 
   function flashMessage(text, kind) {
@@ -492,7 +561,7 @@
     message.className = `message ${kind || ''}`;
     document.getElementById('gameArea').classList.remove('shake');
     if (kind === 'bad') {
-      void document.getElementById('gameArea').offsetWidth; // reflow
+      void document.getElementById('gameArea').offsetWidth;
       document.getElementById('gameArea').classList.add('shake');
     }
   }
@@ -502,15 +571,93 @@
     message.className = 'message';
   }
 
+  async function isValidEnglishWord(word) {
+    try {
+      const res = await fetch(
+        `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`
+      );
+      return res.ok;
+    } catch (e) {
+      return null; // network error → unknown
+    }
+  }
+
+  async function submitCurrentWord() {
+    if (won || validating) return;
+    if (path.length < 3) {
+      flashMessage("Words must be at least 3 letters.", "bad");
+      return;
+    }
+    const word = path.map(i => letters[i].ch).join('');
+
+    validating = true;
+    enterBtn.disabled = true;
+    flashMessage(`Checking "${word.toLowerCase()}"…`, "info");
+
+    const valid = await isValidEnglishWord(word);
+    validating = false;
+
+    if (valid === false) {
+      flashMessage(`"${word.toLowerCase()}" isn't in the dictionary.`, "bad");
+      render();
+      return;
+    }
+    if (valid === null) {
+      flashMessage("Couldn't reach the dictionary. Check your connection and try again.", "bad");
+      render();
+      return;
+    }
+
+    // Word accepted
+    const lastId = path[path.length - 1];
+    completedWords.push({ word, path: path.slice() });
+    path.forEach(id => usedLetters.add(id));
+
+    // Check win
+    if (usedLetters.size === 15) {
+      won = true;
+      path = [];
+      const isOneShot = completedWords.length === 1 && word === TARGET;
+      if (isOneShot) {
+        flashMessage("🎯 Perfect — solved in one with DERMATOGLYPHICS!", "good");
+        showDefinition(true);
+      } else {
+        flashMessage(`🎉 Solved in ${completedWords.length} word${completedWords.length === 1 ? '' : 's'}!`, "good");
+        showDefinition(false);
+      }
+      document.getElementById('gameArea').classList.add('celebrate');
+    } else {
+      // carry the last letter to the start of the next word
+      path = [lastId];
+      flashMessage(`✓ "${word.toLowerCase()}" accepted. ${15 - usedLetters.size} letter${15 - usedLetters.size === 1 ? '' : 's'} left.`, "good");
+    }
+    render();
+  }
+
+  function showDefinition(oneShot) {
+    if (oneShot) {
+      definition.innerHTML = '<strong>dermatoglyphics</strong> <span style="font-weight:normal">(noun)</span>: the scientific study of the patterns of ridges on the skin — fingerprints, palm prints, and the soles of the feet.';
+    } else {
+      definition.innerHTML = 'Nice chain! There is also a 15-letter single-word solution: <strong>DERMATOGLYPHICS</strong> — the study of fingerprint and skin-ridge patterns.';
+    }
+    definition.classList.remove('hidden');
+  }
+
+  enterBtn.addEventListener('click', submitCurrentWord);
+
   backspaceBtn.addEventListener('click', () => {
-    if (path.length === 0) return;
+    if (won || validating || path.length === 0) return;
+    if (completedWords.length > 0 && path.length === 1) return; // protect carryover
     path.pop();
     clearMessage();
     render();
   });
 
-  clearBtn.addEventListener('click', () => {
+  restartBtn.addEventListener('click', () => {
     path = [];
+    completedWords = [];
+    usedLetters = new Set();
+    won = false;
     clearMessage();
     definition.classList.add('hidden');
     document.getElementById('gameArea').classList.remove('celebrate');
@@ -518,36 +665,19 @@
   });
 
   hintBtn.addEventListener('click', () => {
-    flashMessage("Think: the scientific study of fingerprints…", "good");
+    flashMessage("One-word solve: the scientific study of fingerprints. Or chain shorter words — anything in the dictionary works.", "info");
   });
 
-  submitBtn.addEventListener('click', () => {
-    if (path.length !== 15) {
-      flashMessage(`You've used ${path.length} of 15 letters.`, "bad");
-      return;
-    }
-    const guess = path.map(i => letters[i].ch).join('');
-    if (guess === TARGET) {
-      flashMessage("🎉 Solved! You found dermatoglyphics.", "good");
-      definition.classList.remove('hidden');
-      document.getElementById('gameArea').classList.add('celebrate');
-    } else {
-      flashMessage(`"${guess.toLowerCase()}" isn't the answer. Keep trying!`, "bad");
-    }
-  });
-
-  // Keyboard support
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Backspace') {
       e.preventDefault();
       backspaceBtn.click();
     } else if (e.key === 'Enter') {
-      submitBtn.click();
+      e.preventDefault();
+      enterBtn.click();
     } else if (e.key === 'Escape') {
-      clearBtn.click();
+      restartBtn.click();
     } else if (/^[a-zA-Z]$/.test(e.key)) {
-      // Find a letter with this character that isn't the most recent letter,
-      // and is on a different side from the last selected letter.
       const ch = e.key.toUpperCase();
       const candidates = letters.filter(L => L.ch === ch);
       if (candidates.length === 0) return;
