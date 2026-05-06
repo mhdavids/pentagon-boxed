@@ -334,7 +334,6 @@
 <div class="controls">
   <button id="backspaceBtn">⌫ Backspace</button>
   <button id="restartBtn">Restart</button>
-  <button id="hintBtn">Hint</button>
   <button class="primary" id="enterBtn">Enter Word</button>
 </div>
 
@@ -453,7 +452,6 @@
   const enterBtn = document.getElementById('enterBtn');
   const backspaceBtn = document.getElementById('backspaceBtn');
   const restartBtn = document.getElementById('restartBtn');
-  const hintBtn = document.getElementById('hintBtn');
 
   function onLetterClick(id) {
     if (won || validating) return;
@@ -662,10 +660,6 @@
     definition.classList.add('hidden');
     document.getElementById('gameArea').classList.remove('celebrate');
     render();
-  });
-
-  hintBtn.addEventListener('click', () => {
-    flashMessage("One-word solve: the scientific study of fingerprints. Or chain shorter words — anything in the dictionary works.", "info");
   });
 
   document.addEventListener('keydown', (e) => {
