@@ -178,7 +178,7 @@
 
   .letter-text {
     font-family: Georgia, serif;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: bold;
     text-anchor: middle;
     dominant-baseline: central;
@@ -287,7 +287,6 @@
     text-align: center;
     font-size: 0.95rem;
     color: #444;
-    font-style: italic;
     line-height: 1.4;
     padding: 0 12px;
   }
@@ -306,15 +305,16 @@
 
 <header>
   <h1>Pentagon Boxed</h1>
-  <p class="subtitle">Letter Boxed, but five-sided. Solve in one word — or chain as many as you need.</p>
+  <p class="subtitle">Find the hidden word that uses every letter — or chain shorter words to cover them all.</p>
   <details class="rules">
     <summary>How to play</summary>
     <div class="rules-content">
       <ul>
-        <li>Spell a word by clicking letters. Consecutive letters cannot be on the <strong>same side</strong>.</li>
-        <li>Press <strong>Enter Word</strong> to lock in a word. The next word must start with that word's last letter.</li>
-        <li>Use every letter on the pentagon at least once across all your words to win.</li>
-        <li><strong>Bonus challenge:</strong> there's a single 15-letter English word that solves it in one shot.</li>
+        <li>10 letters sit on the pentagon, two per side. Click letters to spell a word.</li>
+        <li>Consecutive letters cannot be on the <strong>same side</strong>.</li>
+        <li>Press <strong>Enter Word</strong> to lock it in. The next word starts with the previous word's last letter.</li>
+        <li>Use every letter at least once across all your words to win.</li>
+        <li><strong>The intended answer</strong> is a single well-known word (10+ letters). Find it for a perfect solve.</li>
         <li>Words are checked against a real English dictionary. Minimum 3 letters per word.</li>
       </ul>
     </div>
@@ -325,7 +325,7 @@
 <div class="word-display" id="wordDisplay">
   <span class="placeholder">click a letter to begin</span>
 </div>
-<div class="progress" id="progress">0 / 15 letters used</div>
+<div class="progress" id="progress">0 / 10 letters used</div>
 
 <div class="game-area" id="gameArea">
   <svg id="board" viewBox="0 0 500 500" width="500" height="500" aria-label="Pentagon puzzle board"></svg>
@@ -334,6 +334,7 @@
 <div class="controls">
   <button id="backspaceBtn">⌫ Backspace</button>
   <button id="restartBtn">Restart</button>
+  <button id="newPuzzleBtn">New Puzzle</button>
   <button class="primary" id="enterBtn">Enter Word</button>
 </div>
 
@@ -343,59 +344,67 @@
 
 <script>
 (() => {
-  // ---- Puzzle setup ---------------------------------------------------------
-  const TARGET = "DERMATOGLYPHICS";
-  // Side assignment for each letter position (0..14). Chosen so that:
-  //  - each side gets exactly 3 letters,
-  //  - no two consecutive letters share a side (so the word stays solvable),
-  //  - side jumps vary (+1, +2, +3, -2, -3, -4) instead of marching round the pentagon.
-  const SIDE_ASSIGNMENT = [0, 3, 1, 4, 2, 0, 3, 1, 2, 4, 0, 2, 4, 1, 3];
-  const SIDES = [[], [], [], [], []];
-  for (let i = 0; i < TARGET.length; i++) SIDES[SIDE_ASSIGNMENT[i]].push(TARGET[i]);
+  // ---- Word pool ------------------------------------------------------------
+  // Each word has exactly 10 unique letters. Words longer than 10 letters
+  // contain repeats but still draw from a 10-letter alphabet.
+  const WORD_POOL = [
+    "BACKGROUND",
+    "BANKRUPTCY",
+    "BIRTHPLACE",
+    "BLACKSMITH",
+    "BLUEPRINTS",
+    "BREAKDOWNS",
+    "DUMBWAITER",
+    "EARTHLINGS",
+    "HOSPITABLE",
+    "IMPORTANCE",
+    "MANUSCRIPT",
+    "METHODICAL",
+    "NIGHTCLUBS",
+    "PALINDROME",
+    "PLAYWRIGHT",
+    "REPUBLICAN",
+    "SCRAMBLING",
+    "TRAMPOLINE",
+    "UNDERCOATS",
+    "DERMATOLOGY",   // 11 letters, O repeats
+    "PERMUTATION",   // 11 letters, T repeats
+    "SHIPWRECKED",   // 11 letters, E repeats
+    "DEMOCRATIZE"    // 11 letters, E repeats
+  ];
 
-  function seededShuffle(arr, seed) {
-    const a = arr.slice();
-    let s = seed;
-    for (let i = a.length - 1; i > 0; i--) {
-      s = (s * 9301 + 49297) % 233280;
-      const j = Math.floor((s / 233280) * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-  const shuffled = SIDES.map((s, i) => seededShuffle(s, 42 + i * 7));
+  // ---- Geometry (static — 10 slots, 2 per side) -----------------------------
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const CX = 250, CY = 250, R = 195;
 
-  // ---- Geometry -------------------------------------------------------------
-  const CX = 250, CY = 250, R = 190;
   const vertices = [];
   for (let i = 0; i < 5; i++) {
     const ang = (-90 + 72 * i) * Math.PI / 180;
     vertices.push({ x: CX + R * Math.cos(ang), y: CY + R * Math.sin(ang) });
   }
 
-  const letters = []; // { id, ch, side, x, y }
+  // 10 fixed slot positions: each side gets 2 letters at t = 1/3 and t = 2/3.
+  const slots = [];
   for (let s = 0; s < 5; s++) {
     const a = vertices[s], b = vertices[(s + 1) % 5];
-    for (let k = 0; k < 3; k++) {
-      const t = 0.25 + 0.25 * k;
+    for (let k = 0; k < 2; k++) {
+      const t = (k + 1) / 3;
       const ex = a.x + (b.x - a.x) * t;
       const ey = a.y + (b.y - a.y) * t;
       const dx = ex - CX, dy = ey - CY;
       const len = Math.hypot(dx, dy);
-      const nx = dx / len, ny = dy / len;
-      const offset = 22;
-      letters.push({
-        id: letters.length,
-        ch: shuffled[s][k],
+      const offset = 26;
+      slots.push({
+        id: slots.length,
         side: s,
-        x: ex + nx * offset,
-        y: ey + ny * offset
+        x: ex + (dx / len) * offset,
+        y: ey + (dy / len) * offset,
+        ch: ''
       });
     }
   }
 
-  // ---- Render setup ---------------------------------------------------------
-  const SVG_NS = "http://www.w3.org/2000/svg";
+  // ---- Render static board (sides, dot groups) ------------------------------
   const board = document.getElementById('board');
 
   for (let s = 0; s < 5; s++) {
@@ -418,36 +427,75 @@
   board.appendChild(pathLayer);
 
   const dotElems = [];
-  letters.forEach(L => {
+  slots.forEach(slot => {
     const g = document.createElementNS(SVG_NS, 'g');
     g.setAttribute('class', 'letter-group');
-    g.setAttribute('data-id', L.id);
+    g.setAttribute('data-id', slot.id);
 
     const c = document.createElementNS(SVG_NS, 'circle');
-    c.setAttribute('cx', L.x);
-    c.setAttribute('cy', L.y);
-    c.setAttribute('r', 20);
-    c.setAttribute('class', `letter-dot s${L.side}`);
+    c.setAttribute('cx', slot.x);
+    c.setAttribute('cy', slot.y);
+    c.setAttribute('r', 22);
+    c.setAttribute('class', `letter-dot s${slot.side}`);
 
     const t = document.createElementNS(SVG_NS, 'text');
-    t.setAttribute('x', L.x);
-    t.setAttribute('y', L.y);
+    t.setAttribute('x', slot.x);
+    t.setAttribute('y', slot.y);
     t.setAttribute('class', 'letter-text');
-    t.textContent = L.ch;
 
     g.appendChild(c);
     g.appendChild(t);
-    g.addEventListener('click', () => onLetterClick(L.id));
+    g.addEventListener('click', () => onLetterClick(slot.id));
     board.appendChild(g);
     dotElems.push({ circle: c, text: t });
   });
 
+  // ---- Puzzle generation ----------------------------------------------------
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function buildConstraints(word) {
+    const set = new Set();
+    for (let i = 0; i < word.length - 1; i++) {
+      const a = word[i], b = word[i + 1];
+      if (a !== b) {
+        const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+        set.add(key);
+      }
+    }
+    return [...set].map(s => s.split('|'));
+  }
+
+  // Try to assign each unique letter to a side (0..4), each side getting
+  // exactly 2 letters, such that all adjacency constraints are satisfied.
+  function findSideMap(uniqueLetters, constraints) {
+    for (let attempt = 0; attempt < 5000; attempt++) {
+      const sides = shuffle([0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+      const map = {};
+      uniqueLetters.forEach((ch, i) => map[ch] = sides[i]);
+      let ok = true;
+      for (const [a, b] of constraints) {
+        if (map[a] === map[b]) { ok = false; break; }
+      }
+      if (ok) return map;
+    }
+    return null;
+  }
+
   // ---- Game state -----------------------------------------------------------
-  let path = [];                    // current word in progress (letter ids)
-  let completedWords = [];          // [{ word: "DERM", path: [ids] }, ...]
-  let usedLetters = new Set();      // letter ids used across all completed words
+  let path = [];
+  let completedWords = [];
+  let usedLetters = new Set();
   let won = false;
   let validating = false;
+  let target = null;
+  let lastTarget = null;
 
   const wordDisplay = document.getElementById('wordDisplay');
   const wordList = document.getElementById('wordList');
@@ -457,24 +505,79 @@
   const enterBtn = document.getElementById('enterBtn');
   const backspaceBtn = document.getElementById('backspaceBtn');
   const restartBtn = document.getElementById('restartBtn');
+  const newPuzzleBtn = document.getElementById('newPuzzleBtn');
 
-  function onLetterClick(id) {
+  function setupNewPuzzle() {
+    // Pick a target different from the previous one if possible.
+    let word, map = null, tries = 0;
+    do {
+      word = WORD_POOL[Math.floor(Math.random() * WORD_POOL.length)];
+      const unique = [...new Set(word)];
+      if (unique.length !== 10) continue; // guard against bad pool entries
+      map = findSideMap(unique, buildConstraints(word));
+      tries++;
+    } while ((!map || (word === lastTarget && WORD_POOL.length > 1)) && tries < 50);
+
+    if (!map) {
+      // very unlikely — fall back to anything that worked
+      word = WORD_POOL[0];
+      map = findSideMap([...new Set(word)], buildConstraints(word));
+    }
+
+    target = word;
+    lastTarget = word;
+
+    // Place each unique letter into an available slot on its assigned side.
+    slots.forEach(s => s.ch = '');
+    const filled = new Set();
+    [...new Set(word)].forEach(ch => {
+      const desiredSide = map[ch];
+      // Randomize within-side slot pick so ordering varies.
+      const candidates = slots.filter(s => s.side === desiredSide && !filled.has(s.id));
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      pick.ch = ch;
+      filled.add(pick.id);
+    });
+
+    // Reset state
+    path = [];
+    completedWords = [];
+    usedLetters = new Set();
+    won = false;
+    validating = false;
+
+    // Reset UI
+    clearMessage();
+    definition.classList.add('hidden');
+    document.getElementById('gameArea').classList.remove('celebrate');
+
+    // Update letter texts on dots
+    slots.forEach(slot => {
+      dotElems[slot.id].text.textContent = slot.ch;
+    });
+
+    render();
+  }
+
+  // ---- Click handling -------------------------------------------------------
+  function onLetterClick(slotId) {
     if (won || validating) return;
-    if (path.length > 0 && path[path.length - 1] === id) return;
+    if (path.length > 0 && path[path.length - 1] === slotId) return;
     if (path.length > 0) {
-      const last = letters[path[path.length - 1]];
-      if (letters[id].side === last.side) {
+      const last = slots[path[path.length - 1]];
+      if (slots[slotId].side === last.side) {
         flashMessage("Consecutive letters must be on different sides.", "bad");
         return;
       }
     }
-    path.push(id);
+    path.push(slotId);
     clearMessage();
     render();
   }
 
+  // ---- Render ---------------------------------------------------------------
   function render() {
-    // Word list (completed)
+    // Completed words list
     if (completedWords.length === 0) {
       wordList.innerHTML = '';
     } else {
@@ -493,28 +596,27 @@
         wordDisplay.innerHTML = '<span class="placeholder">click a letter to begin</span>';
       }
     } else {
-      // If first letter is a carryover, render it muted
       const isCarryover = completedWords.length > 0 &&
         path.length >= 1 &&
         path[0] === completedWords[completedWords.length - 1].path.slice(-1)[0];
       if (isCarryover) {
-        const head = `<span class="carryover">${letters[path[0]].ch}</span>`;
-        const rest = path.slice(1).map(i => letters[i].ch).join('');
+        const head = `<span class="carryover">${slots[path[0]].ch}</span>`;
+        const rest = path.slice(1).map(i => slots[i].ch).join('');
         wordDisplay.innerHTML = head + rest;
       } else {
-        wordDisplay.textContent = path.map(i => letters[i].ch).join('');
+        wordDisplay.textContent = path.map(i => slots[i].ch).join('');
       }
     }
 
-    // Progress (count letters used: completed words + current path)
+    // Progress
     const liveSet = new Set(usedLetters);
     path.forEach(id => liveSet.add(id));
-    progress.textContent = `${liveSet.size} / 15 letters used`;
+    progress.textContent = `${liveSet.size} / 10 letters used`;
 
     // Dots
-    letters.forEach(L => {
-      const { circle, text } = dotElems[L.id];
-      if (liveSet.has(L.id)) {
+    slots.forEach(slot => {
+      const { circle, text } = dotElems[slot.id];
+      if (liveSet.has(slot.id)) {
         circle.classList.add('used');
         text.classList.add('used');
       } else {
@@ -527,8 +629,8 @@
     pastLayer.innerHTML = '';
     completedWords.forEach(w => {
       for (let i = 1; i < w.path.length; i++) {
-        const a = letters[w.path[i - 1]];
-        const b = letters[w.path[i]];
+        const a = slots[w.path[i - 1]];
+        const b = slots[w.path[i]];
         const ln = document.createElementNS(SVG_NS, 'line');
         ln.setAttribute('x1', a.x);
         ln.setAttribute('y1', a.y);
@@ -542,8 +644,8 @@
     // Current path
     pathLayer.innerHTML = '';
     for (let i = 1; i < path.length; i++) {
-      const a = letters[path[i - 1]];
-      const b = letters[path[i]];
+      const a = slots[path[i - 1]];
+      const b = slots[path[i]];
       const ln = document.createElementNS(SVG_NS, 'line');
       ln.setAttribute('x1', a.x);
       ln.setAttribute('y1', a.y);
@@ -555,7 +657,6 @@
 
     enterBtn.disabled = won || validating || path.length < 3;
     backspaceBtn.disabled = won || validating || path.length === 0 ||
-      // can't backspace away the carryover starting letter
       (completedWords.length > 0 && path.length === 1);
   }
 
@@ -574,6 +675,7 @@
     message.className = 'message';
   }
 
+  // ---- Word validation ------------------------------------------------------
   async function isValidEnglishWord(word) {
     try {
       const res = await fetch(
@@ -581,7 +683,7 @@
       );
       return res.ok;
     } catch (e) {
-      return null; // network error → unknown
+      return null;
     }
   }
 
@@ -591,7 +693,7 @@
       flashMessage("Words must be at least 3 letters.", "bad");
       return;
     }
-    const word = path.map(i => letters[i].ch).join('');
+    const word = path.map(i => slots[i].ch).join('');
 
     validating = true;
     enterBtn.disabled = true;
@@ -616,41 +718,33 @@
     completedWords.push({ word, path: path.slice() });
     path.forEach(id => usedLetters.add(id));
 
-    // Check win
-    if (usedLetters.size === 15) {
+    if (usedLetters.size === 10) {
       won = true;
       path = [];
-      const isOneShot = completedWords.length === 1 && word === TARGET;
-      if (isOneShot) {
-        flashMessage("🎯 Perfect — solved in one with DERMATOGLYPHICS!", "good");
-        showDefinition(true);
+      const matchedTarget = (completedWords.length === 1 && word === target);
+      if (matchedTarget) {
+        flashMessage(`🎯 Perfect — you found the intended word: ${target}!`, "good");
+      } else if (completedWords.length === 1) {
+        flashMessage(`🎉 Solved in one word! (Intended answer: ${target})`, "good");
       } else {
-        flashMessage(`🎉 Solved in ${completedWords.length} word${completedWords.length === 1 ? '' : 's'}!`, "good");
-        showDefinition(false);
+        flashMessage(`🎉 Solved in ${completedWords.length} words! (Intended answer: ${target})`, "good");
       }
+      definition.innerHTML = `The intended single-word solution was <strong>${target}</strong>. Press <em>New Puzzle</em> for another.`;
+      definition.classList.remove('hidden');
       document.getElementById('gameArea').classList.add('celebrate');
     } else {
-      // carry the last letter to the start of the next word
       path = [lastId];
-      flashMessage(`✓ "${word.toLowerCase()}" accepted. ${15 - usedLetters.size} letter${15 - usedLetters.size === 1 ? '' : 's'} left.`, "good");
+      const remaining = 10 - usedLetters.size;
+      flashMessage(`✓ "${word.toLowerCase()}" accepted. ${remaining} letter${remaining === 1 ? '' : 's'} left.`, "good");
     }
     render();
-  }
-
-  function showDefinition(oneShot) {
-    if (oneShot) {
-      definition.innerHTML = '<strong>dermatoglyphics</strong> <span style="font-weight:normal">(noun)</span>: the scientific study of the patterns of ridges on the skin — fingerprints, palm prints, and the soles of the feet.';
-    } else {
-      definition.innerHTML = 'Nice chain! There is also a 15-letter single-word solution: <strong>DERMATOGLYPHICS</strong> — the study of fingerprint and skin-ridge patterns.';
-    }
-    definition.classList.remove('hidden');
   }
 
   enterBtn.addEventListener('click', submitCurrentWord);
 
   backspaceBtn.addEventListener('click', () => {
     if (won || validating || path.length === 0) return;
-    if (completedWords.length > 0 && path.length === 1) return; // protect carryover
+    if (completedWords.length > 0 && path.length === 1) return;
     path.pop();
     clearMessage();
     render();
@@ -667,6 +761,10 @@
     render();
   });
 
+  newPuzzleBtn.addEventListener('click', () => {
+    setupNewPuzzle();
+  });
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Backspace') {
       e.preventDefault();
@@ -678,15 +776,15 @@
       restartBtn.click();
     } else if (/^[a-zA-Z]$/.test(e.key)) {
       const ch = e.key.toUpperCase();
-      const candidates = letters.filter(L => L.ch === ch);
+      const candidates = slots.filter(s => s.ch === ch);
       if (candidates.length === 0) return;
-      const last = path.length > 0 ? letters[path[path.length - 1]] : null;
-      const valid = candidates.find(L => !last || L.side !== last.side);
+      const last = path.length > 0 ? slots[path[path.length - 1]] : null;
+      const valid = candidates.find(s => !last || s.side !== last.side);
       if (valid) onLetterClick(valid.id);
     }
   });
 
-  render();
+  setupNewPuzzle();
 })();
 </script>
 
