@@ -345,8 +345,13 @@
 (() => {
   // ---- Puzzle setup ---------------------------------------------------------
   const TARGET = "DERMATOGLYPHICS";
+  // Side assignment for each letter position (0..14). Chosen so that:
+  //  - each side gets exactly 3 letters,
+  //  - no two consecutive letters share a side (so the word stays solvable),
+  //  - side jumps vary (+1, +2, +3, -2, -3, -4) instead of marching round the pentagon.
+  const SIDE_ASSIGNMENT = [0, 3, 1, 4, 2, 0, 3, 1, 2, 4, 0, 2, 4, 1, 3];
   const SIDES = [[], [], [], [], []];
-  for (let i = 0; i < TARGET.length; i++) SIDES[i % 5].push(TARGET[i]);
+  for (let i = 0; i < TARGET.length; i++) SIDES[SIDE_ASSIGNMENT[i]].push(TARGET[i]);
 
   function seededShuffle(arr, seed) {
     const a = arr.slice();
