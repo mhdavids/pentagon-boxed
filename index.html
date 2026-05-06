@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pentagon Boxed — Solve in One</title>
+<style>
+  :root {
+    --bg: #f7f4ec;
+    --ink: #1a1a1a;
+    --line: #2d2d2d;
+    --side-0: #e64a4a;
+    --side-1: #f0a83a;
+    --side-2: #4cae5b;
+    --side-3: #4a8fd0;
+    --side-4: #9c5cc4;
+    --accent: #1a1a1a;
+    --good: #2d8c3c;
+    --bad: #c43030;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 10px;
+    max-width: 600px;
+  }
+
+  h1 {
+    font-size: 2.2rem;
+    margin: 0 0 4px;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+    color: #555;
+    margin: 0 0 8px;
+    font-style: italic;
+  }
+
+  .rules {
+    font-size: 0.85rem;
+    color: #444;
+    line-height: 1.4;
+    margin: 8px 0 0;
+  }
+
+  .rules summary {
+    cursor: pointer;
+    font-weight: bold;
+    user-select: none;
+  }
+
+  .rules-content {
+    text-align: left;
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-top: 6px;
+  }
+
+  .rules-content ul {
+    margin: 6px 0;
+    padding-left: 20px;
+  }
+
+  .word-display {
+    font-size: 1.8rem;
+    font-weight: bold;
+    letter-spacing: 4px;
+    min-height: 2.4rem;
+    margin: 14px 0 6px;
+    color: var(--accent);
+    text-align: center;
+    font-family: 'Courier New', monospace;
+  }
+
+  .word-display .placeholder {
+    color: #bbb;
+    letter-spacing: 2px;
+    font-size: 1.2rem;
+    font-style: italic;
+    font-family: Georgia, serif;
+  }
+
+  .progress {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 8px;
+    height: 1.2rem;
+  }
+
+  .game-area {
+    position: relative;
+  }
+
+  svg {
+    display: block;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  .pentagon-shape {
+    fill: #fff;
+    stroke: var(--line);
+    stroke-width: 2;
+  }
+
+  .side-line {
+    stroke-width: 6;
+    stroke-linecap: round;
+    fill: none;
+  }
+
+  .side-0 { stroke: var(--side-0); }
+  .side-1 { stroke: var(--side-1); }
+  .side-2 { stroke: var(--side-2); }
+  .side-3 { stroke: var(--side-3); }
+  .side-4 { stroke: var(--side-4); }
+
+  .letter-dot {
+    fill: #fff;
+    stroke-width: 2.5;
+    cursor: pointer;
+    transition: transform 0.1s, fill 0.15s;
+    transform-origin: center;
+    transform-box: fill-box;
+  }
+
+  .letter-dot.s0 { stroke: var(--side-0); }
+  .letter-dot.s1 { stroke: var(--side-1); }
+  .letter-dot.s2 { stroke: var(--side-2); }
+  .letter-dot.s3 { stroke: var(--side-3); }
+  .letter-dot.s4 { stroke: var(--side-4); }
+
+  .letter-dot:hover {
+    fill: #f3f3f3;
+  }
+
+  .letter-dot.used {
+    fill: #1a1a1a;
+  }
+
+  .letter-text {
+    font-family: Georgia, serif;
+    font-size: 18px;
+    font-weight: bold;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+    fill: var(--ink);
+  }
+
+  .letter-text.used {
+    fill: #fff;
+  }
+
+  .path-line {
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    fill: none;
+    pointer-events: none;
+  }
+
+  .path-line.last {
+    stroke: var(--accent);
+    stroke-width: 3;
+  }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  button {
+    font-family: Georgia, serif;
+    font-size: 1rem;
+    padding: 10px 18px;
+    border: 2px solid var(--ink);
+    background: #fff;
+    color: var(--ink);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.05s;
+  }
+
+  button:hover:not(:disabled) {
+    background: var(--ink);
+    color: #fff;
+  }
+
+  button:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  button.primary {
+    background: var(--ink);
+    color: #fff;
+  }
+
+  button.primary:hover:not(:disabled) {
+    background: #444;
+  }
+
+  .message {
+    margin-top: 12px;
+    font-size: 1.05rem;
+    min-height: 1.4rem;
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .message.good { color: var(--good); }
+  .message.bad { color: var(--bad); }
+
+  .shake {
+    animation: shake 0.4s;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-8px); }
+    40%, 80% { transform: translateX(8px); }
+  }
+
+  .celebrate {
+    animation: pulse 0.8s ease-out;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  .definition {
+    margin-top: 14px;
+    max-width: 480px;
+    text-align: center;
+    font-size: 0.95rem;
+    color: #444;
+    font-style: italic;
+    line-height: 1.4;
+    padding: 0 12px;
+  }
+
+  .hidden { display: none; }
+
+  @media (max-width: 540px) {
+    h1 { font-size: 1.6rem; }
+    svg { width: 100%; height: auto; }
+    .word-display { font-size: 1.3rem; letter-spacing: 2px; }
+    button { padding: 8px 14px; font-size: 0.9rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pentagon Boxed</h1>
+  <p class="subtitle">Letter Boxed, but five-sided — and solvable in one word.</p>
+  <details class="rules">
+    <summary>How to play</summary>
+    <div class="rules-content">
+      <ul>
+        <li>Click letters to spell a single word using <strong>all 15 letters</strong>.</li>
+        <li>Consecutive letters cannot be on the <strong>same side</strong> of the pentagon.</li>
+        <li>Each letter is used exactly once. There is one valid English word.</li>
+        <li>Use <em>Backspace</em> to undo, <em>Clear</em> to start over.</li>
+      </ul>
+    </div>
+  </details>
+</header>
+
+<div class="word-display" id="wordDisplay">
+  <span class="placeholder">click a letter to begin</span>
+</div>
+<div class="progress" id="progress">0 / 15 letters used</div>
+
+<div class="game-area" id="gameArea">
+  <svg id="board" viewBox="0 0 500 500" width="500" height="500" aria-label="Pentagon puzzle board">
+    <!-- pentagon outline drawn in JS -->
+  </svg>
+</div>
+
+<div class="controls">
+  <button id="backspaceBtn">⌫ Backspace</button>
+  <button id="clearBtn">Clear</button>
+  <button id="hintBtn">Hint</button>
+  <button class="primary" id="submitBtn">Submit</button>
+</div>
+
+<div class="message" id="message"></div>
+
+<div class="definition hidden" id="definition">
+  <strong>dermatoglyphics</strong> <span style="font-weight:normal">(noun)</span>: the scientific study of the patterns of ridges on the skin — fingerprints, palm prints, and the soles of the feet.
+</div>
+
+<script>
+(() => {
+  // ---- Puzzle setup ---------------------------------------------------------
+  // The target word: DERMATOGLYPHICS (15 unique letters)
+  // Letters indexed 0..14 in the word; side[i] = i mod 5 guarantees no two
+  // consecutive letters share a side.
+  const TARGET = "DERMATOGLYPHICS";
+  const SIDES = [[], [], [], [], []];
+  for (let i = 0; i < TARGET.length; i++) SIDES[i % 5].push(TARGET[i]);
+
+  // Shuffle each side so the answer isn't readable in order around the pentagon.
+  // Use a fixed seed so today's puzzle is consistent on reload.
+  function seededShuffle(arr, seed) {
+    const a = arr.slice();
+    let s = seed;
+    for (let i = a.length - 1; i > 0; i--) {
+      s = (s * 9301 + 49297) % 233280;
+      const j = Math.floor((s / 233280) * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  const shuffled = SIDES.map((s, i) => seededShuffle(s, 42 + i * 7));
+
+  // ---- Geometry -------------------------------------------------------------
+  const CX = 250, CY = 250, R = 190;
+  // Vertices at -90°, -18°, 54°, 126°, 198°
+  const vertices = [];
+  for (let i = 0; i < 5; i++) {
+    const ang = (-90 + 72 * i) * Math.PI / 180;
+    vertices.push({ x: CX + R * Math.cos(ang), y: CY + R * Math.sin(ang) });
+  }
+
+  // For each side i: from vertices[i] to vertices[(i+1) % 5]
+  // Place 3 letters at 25%, 50%, 75% along the side.
+  const letters = []; // { id, ch, side, x, y }
+  for (let s = 0; s < 5; s++) {
+    const a = vertices[s], b = vertices[(s + 1) % 5];
+    for (let k = 0; k < 3; k++) {
+      const t = 0.25 + 0.25 * k;
+      // Push letters slightly outward from the edge for clarity.
+      const ex = a.x + (b.x - a.x) * t;
+      const ey = a.y + (b.y - a.y) * t;
+      // outward normal = away from centroid
+      const dx = ex - CX, dy = ey - CY;
+      const len = Math.hypot(dx, dy);
+      const nx = dx / len, ny = dy / len;
+      const offset = 22;
+      letters.push({
+        id: letters.length,
+        ch: shuffled[s][k],
+        side: s,
+        x: ex + nx * offset,
+        y: ey + ny * offset
+      });
+    }
+  }
+
+  // ---- Render ---------------------------------------------------------------
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const board = document.getElementById('board');
+
+  // Pentagon fill (white), with each edge drawn as a colored line so each side
+  // has its own identity color.
+  for (let s = 0; s < 5; s++) {
+    const a = vertices[s], b = vertices[(s + 1) % 5];
+    const line = document.createElementNS(SVG_NS, 'line');
+    line.setAttribute('x1', a.x);
+    line.setAttribute('y1', a.y);
+    line.setAttribute('x2', b.x);
+    line.setAttribute('y2', b.y);
+    line.setAttribute('class', `side-line side-${s}`);
+    board.appendChild(line);
+  }
+
+  // Path layer (drawn before letters so dots sit on top)
+  const pathLayer = document.createElementNS(SVG_NS, 'g');
+  pathLayer.setAttribute('id', 'pathLayer');
+  board.appendChild(pathLayer);
+
+  // Letter dots
+  const dotElems = [];
+  letters.forEach(L => {
+    const g = document.createElementNS(SVG_NS, 'g');
+    g.setAttribute('class', 'letter-group');
+    g.setAttribute('data-id', L.id);
+
+    const c = document.createElementNS(SVG_NS, 'circle');
+    c.setAttribute('cx', L.x);
+    c.setAttribute('cy', L.y);
+    c.setAttribute('r', 20);
+    c.setAttribute('class', `letter-dot s${L.side}`);
+
+    const t = document.createElementNS(SVG_NS, 'text');
+    t.setAttribute('x', L.x);
+    t.setAttribute('y', L.y);
+    t.setAttribute('class', 'letter-text');
+    t.textContent = L.ch;
+
+    g.appendChild(c);
+    g.appendChild(t);
+    g.addEventListener('click', () => onLetterClick(L.id));
+    board.appendChild(g);
+    dotElems.push({ circle: c, text: t });
+  });
+
+  // ---- Game state -----------------------------------------------------------
+  let path = []; // list of letter ids in order
+  const wordDisplay = document.getElementById('wordDisplay');
+  const progress = document.getElementById('progress');
+  const message = document.getElementById('message');
+  const definition = document.getElementById('definition');
+  const submitBtn = document.getElementById('submitBtn');
+  const backspaceBtn = document.getElementById('backspaceBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const hintBtn = document.getElementById('hintBtn');
+
+  function onLetterClick(id) {
+    if (path.length > 0 && path[path.length - 1] === id) return; // ignore repeat click on same letter
+    if (path.length > 0) {
+      const last = letters[path[path.length - 1]];
+      if (letters[id].side === last.side) {
+        flashMessage("Consecutive letters must be on different sides.", "bad");
+        return;
+      }
+    }
+    path.push(id);
+    render();
+  }
+
+  function render() {
+    // Word display
+    if (path.length === 0) {
+      wordDisplay.innerHTML = '<span class="placeholder">click a letter to begin</span>';
+    } else {
+      wordDisplay.textContent = path.map(i => letters[i].ch).join('');
+    }
+    progress.textContent = `${path.length} / 15 letters used`;
+
+    // Dots
+    const usedSet = new Set(path);
+    letters.forEach(L => {
+      const { circle, text } = dotElems[L.id];
+      if (usedSet.has(L.id)) {
+        circle.classList.add('used');
+        text.classList.add('used');
+      } else {
+        circle.classList.remove('used');
+        text.classList.remove('used');
+      }
+    });
+
+    // Path lines
+    pathLayer.innerHTML = '';
+    for (let i = 1; i < path.length; i++) {
+      const a = letters[path[i - 1]];
+      const b = letters[path[i]];
+      const ln = document.createElementNS(SVG_NS, 'line');
+      ln.setAttribute('x1', a.x);
+      ln.setAttribute('y1', a.y);
+      ln.setAttribute('x2', b.x);
+      ln.setAttribute('y2', b.y);
+      ln.setAttribute('class', i === path.length - 1 ? 'path-line last' : 'path-line');
+      pathLayer.appendChild(ln);
+    }
+  }
+
+  function flashMessage(text, kind) {
+    message.textContent = text;
+    message.className = `message ${kind || ''}`;
+    document.getElementById('gameArea').classList.remove('shake');
+    if (kind === 'bad') {
+      void document.getElementById('gameArea').offsetWidth; // reflow
+      document.getElementById('gameArea').classList.add('shake');
+    }
+  }
+
+  function clearMessage() {
+    message.textContent = '';
+    message.className = 'message';
+  }
+
+  backspaceBtn.addEventListener('click', () => {
+    if (path.length === 0) return;
+    path.pop();
+    clearMessage();
+    render();
+  });
+
+  clearBtn.addEventListener('click', () => {
+    path = [];
+    clearMessage();
+    definition.classList.add('hidden');
+    document.getElementById('gameArea').classList.remove('celebrate');
+    render();
+  });
+
+  hintBtn.addEventListener('click', () => {
+    flashMessage("Think: the scientific study of fingerprints…", "good");
+  });
+
+  submitBtn.addEventListener('click', () => {
+    if (path.length !== 15) {
+      flashMessage(`You've used ${path.length} of 15 letters.`, "bad");
+      return;
+    }
+    const guess = path.map(i => letters[i].ch).join('');
+    if (guess === TARGET) {
+      flashMessage("🎉 Solved! You found dermatoglyphics.", "good");
+      definition.classList.remove('hidden');
+      document.getElementById('gameArea').classList.add('celebrate');
+    } else {
+      flashMessage(`"${guess.toLowerCase()}" isn't the answer. Keep trying!`, "bad");
+    }
+  });
+
+  // Keyboard support
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      backspaceBtn.click();
+    } else if (e.key === 'Enter') {
+      submitBtn.click();
+    } else if (e.key === 'Escape') {
+      clearBtn.click();
+    } else if (/^[a-zA-Z]$/.test(e.key)) {
+      // Find a letter with this character that isn't the most recent letter,
+      // and is on a different side from the last selected letter.
+      const ch = e.key.toUpperCase();
+      const candidates = letters.filter(L => L.ch === ch);
+      if (candidates.length === 0) return;
+      const last = path.length > 0 ? letters[path[path.length - 1]] : null;
+      const valid = candidates.find(L => !last || L.side !== last.side);
+      if (valid) onLetterClick(valid.id);
+    }
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
